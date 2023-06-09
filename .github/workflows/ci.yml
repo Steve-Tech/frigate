@@ -27,10 +27,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
-      - id: lowercaseRepo
-        uses: ASzc/change-string-case-action@v5
-        with:
-          string: ${{ github.repository }}
       - name: Check out code
         uses: actions/checkout@v3
       - name: Set up QEMU
@@ -45,8 +41,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create version file
         run: make version
-      - name: Create short sha
-        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch  # add branch tag
+            type=sha,prefix={{branch}}-  # add commit sha tag
+      - name: Docker meta
+        id: meta-tensorrt
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch,suffix=-tensorrt
+            type=sha,prefix={{branch}}-,suffix=-tensorrt
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
@@ -54,9 +66,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           target: frigate
-          tags: |
-            ghcr.io/${{ steps.lowercaseRepo.outputs.lowercase }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}
-            ghcr.io/${{ steps.lowercaseRepo.outputs.lowercase }}:${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push TensorRT
@@ -66,7 +77,6 @@ jobs:
           push: true
           platforms: linux/amd64
           target: frigate-tensorrt
-          tags: |
-            ghcr.io/${{ steps.lowercaseRepo.outputs.lowercase }}:${{ github.ref_name }}-${{ env.SHORT_SHA }}-tensorrt
-            ghcr.io/${{ steps.lowercaseRepo.outputs.lowercase }}:${{ github.ref_name }}-tensorrt
+          tags: ${{ steps.meta-tensorrt.outputs.tags }}
+          labels: ${{ steps.meta-tensorrt.outputs.labels }}
           cache-from: type=gha
