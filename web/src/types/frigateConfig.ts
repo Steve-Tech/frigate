@@ -296,7 +296,15 @@ export interface FrigateConfig {
     retry_interval: number;
   };
 
-  go2rtc: Record<string, unknown>;
+  go2rtc: {
+    streams?: Record<string, string>;
+    webrtc?: {
+      listen?: string;
+      candidates?: string[];
+      ice_servers?: RTCIceServer[];
+    };
+    [key: string]: unknown;
+  };
 
   camera_groups: { [groupName: string]: CameraGroupConfig };
 

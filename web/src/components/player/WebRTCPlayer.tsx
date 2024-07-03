@@ -1,6 +1,8 @@
 import { baseUrl } from "@/api/baseUrl";
 import { LivePlayerError } from "@/types/live";
+import { FrigateConfig } from "@/types/frigateConfig";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
 
 type WebRtcPlayerProps = {
   className?: string;
@@ -31,6 +33,13 @@ export default function WebRtcPlayer({
     return `${baseUrl.replace(/^http/, "ws")}live/webrtc/api/ws?src=${camera}`;
   }, [camera]);
 
+  const { data: config } = useSWR<FrigateConfig>("config");
+
+  const iceServers = useMemo(
+    () => config?.go2rtc.webrtc?.ice_servers,
+    [config],
+  );
+
   // camera states
 
   const pcRef = useRef<RTCPeerConnection | undefined>();
@@ -46,7 +55,7 @@ export default function WebRtcPlayer({
 
       const pc = new RTCPeerConnection({
         bundlePolicy: "max-bundle",
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        iceServers: iceServers || [{ urls: "stun:stun.l.google.com:19302" }],
       });
 
       const localTracks = [];
@@ -86,7 +95,7 @@ export default function WebRtcPlayer({
       videoRef.current.srcObject = new MediaStream(localTracks);
       return pc;
     },
-    [videoRef],
+    [videoRef, iceServers],
   );
 
   async function getMediaTracks(
